@@ -91,6 +91,7 @@ h2{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:clamp(
 .mtop h2{margin-top:6px}
 .fund{margin-top:12px;padding:14px 16px;display:grid;gap:8px}
 .lay{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:12px;margin-top:12px;align-items:start}
+.lay>*,.create>*{min-width:0}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line)}
 .stats div{padding:12px 14px;border-right:1px solid var(--soft)}
 .stats div:last-child{border-right:0}
@@ -160,7 +161,7 @@ footer nav{display:flex;gap:14px}
 @media (max-width:980px){
   .nav{display:none}
   .hero{grid-template-columns:1fr} .heroart{max-width:420px}
-  .lay,.create{grid-template-columns:1fr} .ticket{position:static}
+  .lay,.create{grid-template-columns:minmax(0,1fr)} .ticket{position:static}
   .stats{grid-template-columns:1fr 1fr} .stats div:nth-child(2){border-right:0} .stats div:nth-child(-n+2){border-bottom:1px solid var(--soft)}
 }
 @media (max-width:620px){
