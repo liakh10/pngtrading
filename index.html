@@ -180,6 +180,7 @@ footer nav{display:flex;gap:14px}
 .wdot{width:8px;height:8px;border-radius:50%;background:var(--lime2)}
 .note{padding:12px 14px;border:1px dashed var(--line);border-radius:10px;background:#fff;font-size:12px}
 a.tx{text-decoration:underline;text-underline-offset:2px}
+[hidden]{display:none!important}
 </style>
 </head>
 <body>
@@ -226,7 +227,16 @@ document.querySelectorAll('[data-link="x"]').forEach(a => { a.href = S.X_URL || 
 if (HAS) { $('caAddr').textContent = CA; $('caAddr').classList.remove('soon'); $('ca').classList.add('live'); }
 $('ca').onclick = () => { if (HAS) { navigator.clipboard && navigator.clipboard.writeText(CA); $('caCp').textContent = '[ COPIED ]'; } else $('caCp').textContent = '[ NOT YET ]'; setTimeout(() => $('caCp').textContent = '[ COPY ]', 1300); };
 
-const [MKT, FAC] = await Promise.all(['PngMarket', 'PngFactory'].map(n => fetch('/assets/contracts/' + n + '.json').then(r => r.json()).then(j => j.abi)));
+const ABI_V = '2';
+let MKT = null, FAC = null;
+async function abis() {
+  if (MKT && FAC) return;
+  for (let i = 0; i < 3 && !(MKT && FAC); i++) {
+    try { [MKT, FAC] = await Promise.all(['PngMarket', 'PngFactory'].map(n => fetch('/lib/abi/' + n + '.json?v=' + ABI_V, { cache: 'no-store' }).then(r => { if (!r.ok) throw Error('abi ' + r.status); return r.json(); }).then(j => j.abi))); }
+    catch (e) { await new Promise(r => setTimeout(r, 800)); }
+  }
+  if (!(MKT && FAC)) throw Error('Could not load the contract interface. Refresh the page.');
+}
 const ST = { markets: [], market: null, now: Math.floor(Date.now() / 1000), w: W.state() };
 let route = null, busy = false, filter = 'all';
 const ARTS = ['frog', 'cat', 'pigeon', 'bot'];
@@ -262,6 +272,8 @@ async function act(req, btn, label) {
   if (busy) return null; busy = true; if (btn) btn.disabled = true;
   try {
     await needWallet();
+    await abis();
+    if (!req.abi) req.abi = req.kind === 'factory' ? FAC : MKT;
     toast('Confirm in your wallet…', false, 60000);
     const tx = await W.send(req);
     toast(esc(label) + ' · waiting for Robinhood Chain · ' + txa(tx.hash), false, 60000);
@@ -405,17 +417,17 @@ function bindMarket(id) {
     const M = toM(), v = ST.market; if (!M) return;
     const n = parseInt($('nQty').value, 10) || 0;
     try {
-      if (nSide === 'buy') { const q = E.quoteEditions(M, n, true); act({ address: v.market, abi: MKT, functionName: 'buy', args: [BigInt(n)], value: q.total + q.total / 50n }, $('nGo'), 'Buying ' + n + ' PNG' + (n > 1 ? 's' : '')); }
-      else { const q = E.quoteEditions(M, n, false); const ids = v.mine.slice(0, n).map(BigInt); if (ids.length < n) throw Error('You own ' + v.mine.length + ' editions.'); act({ address: v.market, abi: MKT, functionName: 'sell', args: [ids, q.total * 98n / 100n] }, $('nGo'), 'Selling ' + n + ' PNG' + (n > 1 ? 's' : '')); }
+      if (nSide === 'buy') { const q = E.quoteEditions(M, n, true); act({ address: v.market, kind: 'market', functionName: 'buy', args: [BigInt(n)], value: q.total + q.total / 50n }, $('nGo'), 'Buying ' + n + ' PNG' + (n > 1 ? 's' : '')); }
+      else { const q = E.quoteEditions(M, n, false); const ids = v.mine.slice(0, n).map(BigInt); if (ids.length < n) throw Error('You own ' + v.mine.length + ' editions.'); act({ address: v.market, kind: 'market', functionName: 'sell', args: [ids, q.total * 98n / 100n] }, $('nGo'), 'Selling ' + n + ' PNG' + (n > 1 ? 's' : '')); }
     } catch (e) { toast(esc(e.message), true); }
   };
   $('pGo').onclick = () => {
     const v = ST.market; if (!v) return;
-    try { const m = E.toWei($('pMargin').value || '0', 'Collateral'), fee = E.bps(m * BigInt(pLev), E.OPEN_BPS); act({ address: v.market, abi: MKT, functionName: 'open', args: [pSide === 'long', m, pLev], value: m + fee }, $('pGo'), 'Opening ' + (pSide === 'long' ? 'Long' : 'Short')); }
+    try { const m = E.toWei($('pMargin').value || '0', 'Collateral'), fee = E.bps(m * BigInt(pLev), E.OPEN_BPS); act({ address: v.market, kind: 'market', functionName: 'open', args: [pSide === 'long', m, pLev], value: m + fee }, $('pGo'), 'Opening ' + (pSide === 'long' ? 'Long' : 'Short')); }
     catch (e) { toast(esc(e.message), true); }
   };
   $('mShare').onclick = () => { navigator.clipboard && navigator.clipboard.writeText(location.href); toast('Link copied.'); };
-  $('posRows').onclick = e => { const b = e.target.closest('button[data-id]'); if (b) act({ address: ST.market.market, abi: MKT, functionName: 'close', args: [BigInt(b.dataset.id)] }, b, b.textContent.trim() + ' #' + b.dataset.id); };
+  $('posRows').onclick = e => { const b = e.target.closest('button[data-id]'); if (b) act({ address: ST.market.market, kind: 'market', functionName: 'close', args: [BigInt(b.dataset.id)] }, b, b.textContent.trim() + ' #' + b.dataset.id); };
 }
 function toM() {
   const v = ST.market; if (!v) return null;
@@ -519,7 +531,7 @@ function bindCreate() {
     const name = $('cName').value.trim(), sym = $('cSym').value.toUpperCase().replace(/[^A-Z0-9]/g, ''), art = cArtValue();
     if (name.length < 2 || sym.length < 2) return toast('Name and symbol need at least 2 characters.', true);
     if (!/^(https|ipfs):\/\//.test(art)) return toast('Artwork link must start with https:// or ipfs://', true);
-    const rc = await act({ address: FACTORY, abi: FAC, functionName: 'create', args: [name, sym, art, cTerms.base, cTerms.supply, $('cTarget').value.trim() ? cTerms.target : 0n] }, $('cGo'), 'Launching ' + name);
+    const rc = await act({ address: FACTORY, kind: 'factory', functionName: 'create', args: [name, sym, art, cTerms.base, cTerms.supply, $('cTarget').value.trim() ? cTerms.target : 0n] }, $('cGo'), 'Launching ' + name);
     if (!rc) return;
     for (const l of rc.logs) { try { const d = decodeEventLog({ abi: FAC, data: l.data, topics: l.topics }); if (d.eventName === 'MarketCreated') { location.hash = '#/m/' + d.args.market; return; } } catch {} }
   };
@@ -543,6 +555,7 @@ function paintCreate() {
 paintWallet();
 W.restore().then(s => { ST.w = s; paintWallet(); });
 load(true);
+abis().catch(() => {});
 </script>
 </body>
 </html>

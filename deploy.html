@@ -42,7 +42,7 @@ ol{margin:10px 0 0 18px}
 import * as W from '/lib/wallet.js';
 import { encodeDeployData } from 'https://cdn.jsdelivr.net/npm/viem@2.21.55/+esm';
 const $ = id => document.getElementById(id);
-const [M, F] = await Promise.all(['PngMarket', 'PngFactory'].map(n => fetch('/assets/contracts/' + n + '.json').then(r => r.json())));
+const [M, F] = await Promise.all(['PngMarket', 'PngFactory'].map(n => fetch('/lib/abi/' + n + '.json?v=2').then(r => r.json())));
 let impl = null; try { impl = localStorage.getItem('png:impl'); } catch {}
 const paint = s => { $('who').textContent = s.address ? W.short(s.address) + (s.onChain ? ' · Robinhood Chain' : ' · wrong network') : ''; $('d1').disabled = !s.address; $('d2').disabled = !s.address || !impl; if (impl) $('s1').innerHTML = '<span class="ok">' + impl + '</span>'; };
 W.onChange(paint); W.restore().then(paint);
