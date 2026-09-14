@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="/config.js"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PNG Trading Docs</title>
+<meta name="description" content="How PNG Trading works: bonding-curve editions, the perp pool, Long and Short, fees, reserves, and the play-money beta" />
+<link rel="icon" type="image/png" href="/assets/img/favicon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Chivo+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+:root{--bg:#f3f3ef;--panel:#ffffff;--ink:#0e0f0c;--dim:#6b6c66;--line:#1a1b17;--acc:#1a8a4a;--acc2:#a6ff2e;--disp:"Bricolage Grotesque",sans-serif;--mono:"Chivo Mono",monospace;--pad:clamp(16px,3vw,40px);--r:10px;--rs:14px}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:84px}
+body{background:var(--bg);color:var(--ink);font-family:var(--mono);font-size:14px;-webkit-font-smoothing:antialiased;}
+a{color:inherit;text-decoration:none} img{display:block;max-width:100%}
+.top{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px var(--pad);background:rgba(243,243,239,.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--disp);font-weight:700;font-size:16px}
+.brand img{width:28px;height:28px;border-radius:6px}
+.brand small{font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--acc);font-weight:400}
+.top nav{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.key{display:inline-flex;align-items:center;gap:8px;font-family:var(--disp);font-weight:700;font-size:12px;letter-spacing:.08em;padding:9px 14px;border-radius:var(--r);color:var(--ink);border:1px solid var(--line);background:var(--panel);white-space:nowrap}
+.key.buy{background:var(--acc);color:#0e0f0c;border-color:var(--acc)}
+.key.crumb{background:var(--acc2);color:#0e0f0c;border-color:var(--acc2);cursor:default}
+.key img{width:14px;height:14px;object-fit:contain}
+.shell{display:grid;grid-template-columns:240px minmax(0,1fr);gap:clamp(24px,4vw,60px);width:min(1180px,100%);margin:0 auto;padding:36px var(--pad) 90px}
+.side{position:sticky;top:84px;align-self:start;display:flex;flex-direction:column;gap:4px}
+.kick{font-size:10px;letter-spacing:.34em;color:var(--acc);margin-bottom:10px;text-transform:uppercase}
+.side a{font-family:var(--disp);font-weight:600;font-size:13px;padding:8px 12px;border-radius:var(--r);color:var(--dim)}
+.side a:hover{color:var(--ink)} .side a.on{color:var(--ink);background:var(--panel);border:1px solid var(--line)}
+.hero{margin-bottom:26px}
+.hero h1{font-family:var(--disp);font-weight:800;font-size:clamp(38px,6vw,72px);line-height:.95;letter-spacing:-.03em}
+.hero h1 em{font-style:normal;color:var(--acc)}
+.hero p{margin-top:12px;line-height:1.6;color:var(--dim);max-width:60ch;white-space:pre-line}
+.sec{background:var(--panel);border:1px solid var(--line);border-radius:var(--rs);padding:clamp(20px,3vw,32px);margin-bottom:18px}
+.sec h2{font-family:var(--disp);font-weight:800;font-size:clamp(22px,3vw,32px);line-height:1;margin-bottom:14px}
+.sec h2 i{font-style:normal;font-family:var(--mono);font-weight:400;font-size:10px;letter-spacing:.3em;color:var(--acc);display:block;margin-bottom:8px}
+.sec p{line-height:1.65;max-width:72ch} .sec p + p{margin-top:8px}
+.rows{display:grid;margin-top:14px;border-top:1px solid var(--line)}
+.row{display:grid;grid-template-columns:170px 1fr;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);line-height:1.55}
+.row dt{font-size:10px;letter-spacing:.24em;color:var(--dim);padding-top:3px;text-transform:uppercase}
+.tree{margin-top:12px;font-family:var(--mono);font-size:13px;line-height:1.8;white-space:pre;overflow-x:auto;padding:12px 14px;background:var(--bg);border:1px solid var(--line);border-radius:var(--rs)}
+.tree b{color:var(--acc);font-weight:500}
+.ca{display:inline-flex;align-items:center;gap:12px;max-width:100%;padding:12px 16px;margin-top:14px;background:var(--bg);border:1px solid var(--acc);border-radius:var(--rs)}
+.ca small{font-size:9px;letter-spacing:.32em;color:var(--dim);white-space:nowrap}
+.ca b{font-family:var(--mono);font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ca .copy{display:none;font:inherit;font-family:var(--disp);font-weight:700;font-size:11px;letter-spacing:.14em;padding:7px 12px;border-radius:var(--r);background:var(--acc);color:#0e0f0c;border:0;cursor:pointer}
+.ca.live{cursor:pointer} .ca.live .copy{display:inline-block} .ca.live b{color:var(--acc)}
+.links{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+.faq{display:grid;gap:10px;margin-top:12px}
+.faq div{padding:12px 14px;border-radius:var(--rs);background:var(--bg);border:1px solid var(--line)}
+.faq b{font-family:var(--disp);font-weight:700;font-size:15px;display:block;margin-bottom:4px}
+.faq span{line-height:1.6;color:var(--dim)}
+.foot{width:min(1180px,100%);margin:0 auto;padding:0 var(--pad) 40px;font-size:10px;letter-spacing:.22em;color:var(--dim);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;text-transform:uppercase}
+@media (max-width:820px){
+  .shell{grid-template-columns:minmax(0,1fr);gap:18px;padding-top:20px} main{min-width:0}
+  .side{position:static;flex-direction:row;overflow-x:auto;gap:6px;padding-bottom:6px;scrollbar-width:none} .side .kick{display:none}
+  .side a{white-space:nowrap;font-size:12px;padding:7px 11px}
+  .row{grid-template-columns:1fr;gap:4px} .top nav .key{padding:8px 10px;font-size:11px;gap:5px} .brand span{display:none}
+  .ca{width:100%;flex-wrap:wrap;gap:5px 10px} .ca small{width:100%} .ca b{width:100%;font-size:clamp(9px,2.7vw,13px)} .ca .copy{width:100%;text-align:center}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/"><img src="/assets/img/favicon.png" alt="" /><span>PNG TRADING</span><small>DOCS</small></a>
+  <nav>
+    <a class="key" href="/"><span>MARKETS</span></a>
+    <a class="key buy" data-link="pons" href="https://www.ponsfamily.com/launchpad"><img src="/assets/img/pons.png" alt="" style="filter:invert(1)" /><span>BUY</span></a>
+    <a class="key" data-link="x" href="https://x.com"><span>X</span></a>
+    <span class="key crumb">DOCS</span>
+  </nav>
+</header>
+<div class="shell">
+  <aside class="side"><span class="kick">Field manual</span><a href="#what" class=on>What is this</a><a href="#wallet">Your wallet</a><a href="#create">Create a collection</a><a href="#editions">Buy &amp; sell PNGs</a><a href="#open">Opening the pool</a><a href="#perps">Long &amp; Short</a><a href="#close">Closing &amp; liquidation</a><a href="#fees">Fees</a><a href="#chart">The chart</a><a href="#server">How the beta runs</a><a href="#token">$PNG</a><a href="#roadmap">Roadmap</a><a href="#faq">FAQ</a></aside>
+  <main>
+    <div class="hero"><h1>PNG <em>TRADING</em> DOCS</h1><p>From PNG editions to a trading market. Formulas follow the ones JPEG Trading publishes; this beta runs them on a shared server with play ETH</p></div>
+    <section id="what" class="sec"><h2><i>01 · overview</i>A market for PNG editions</h2><p>PNG Trading lets anyone create a collection of numbered PNG editions on a bonding curve. Every buy and sell pays a 5% fee into a separate perp pool. When that pool reaches its target, Long and Short positions open on the same curve price.</p><p>This is a play-money beta. There is one shared market on a server: everyone who opens the site trades the same collections, sees the same trades and positions, and competes for the same pool capacity. Balances are pETH, a play currency with no value. Nothing touches a wallet or a chain. The $PNG token is real and separate.</p><dl class="rows"><div class="row"><dt>Shared</dt><dd>collections, prices, trades, pools, positions, liquidations</dd></div><div class="row"><dt>Play money</dt><dd>pETH balances, faucet</dd></div><div class="row"><dt>Real</dt><dd>the $PNG contract on Pons</dd></div><div class="row"><dt>Not here</dt><dd>wallet connection, onchain transactions, real ETH</dd></div></dl></section><section id="wallet" class="sec"><h2><i>02 · play ETH</i>A key in this browser</h2><p>The first visit creates a random 32-character key in this browser. The server derives a public wallet id from it with SHA-256 and gives that wallet 10 pETH. Anyone with the key controls the wallet; clearing site data loses it.</p><dl class="rows"><div class="row"><dt>Starting balance</dt><dd>10 pETH</dd></div><div class="row"><dt>Faucet</dt><dd>+5 pETH once every 24 hours</dd></div><div class="row"><dt>Shown to others</dt><dd>the first 6 characters of the wallet id</dd></div></dl></section><section id="create" class="sec"><h2><i>03 · terms</i>Name, art, limit, price</h2><p>Pick a name, a symbol, one of four PNG artworks, an edition limit and a starting price. The page shows the first edition cost, the curve ceiling, when perps open and what size can trade at opening before you launch.</p><pre class="tree">├── <b>editions              </b>10 to 10,000
+├── <b>starting price        </b>0.000001 to 1 pETH
+├── <b>step                  </b>ceil(start ÷ editions)
+├── <b>price of edition k    </b>start + step × k
+├── <b>ceiling               </b>start + step × editions
+├── <b>principal             </b>editions × start + step × editions × (editions − 1) ÷ 2
+├── <b>opening target        </b>¼ to all of 5% of the principal, minimum by default
+├── <b>limit                 </b>3 collections per wallet per day</pre><p>Small combinations that cannot support minimum-size positions are rejected. Terms cannot change after launch.</p></section><section id="editions" class="sec"><h2><i>04 · curve</i>Mint and burn</h2><p>Buy 1–20 editions at a time. Each one minted raises the curve price by one step. Selling burns editions you own, lowers the price and pays you the curve amount minus 5%.</p><pre class="tree">├── <b>buy n                 </b>cum(supply + n) − cum(supply), plus 5%
+├── <b>sell n                </b>cum(supply) − cum(supply − n), minus 5%
+├── <b>fee                   </b>5% rounded up, all of it into the perp pool
+├── <b>redemption reserve    </b>always equals cum(supply)</pre></section><section id="open" class="sec"><h2><i>05 · activation</i>Fees fill the pool</h2><p>The pool counts real fees from buys and sells. The trade that reaches the target opens perps in the same step; they stay open afterwards. Example: 1,000 editions starting at 0.05 with the minimum target open after 323 one-at-a-time buys, buyers spend 19.6876575 pETH and the pool holds 0.9375075 pETH.</p></section><section id="perps" class="sec"><h2><i>06 · positions</i>1–3× on the curve price</h2><p>Choose a side, collateral and leverage. Long gains when the curve price rises, Short when it falls. You do not need to own editions.</p><pre class="tree">├── <b>size               </b>collateral × leverage
+├── <b>quantity           </b>size ÷ entry price
+├── <b>reserved profit    </b>quantity × (ceiling − entry) for Long, quantity × (entry − start) for Short
+├── <b>exposure cap       </b>start × 0.025 ÷ step editions, shared by both sides
+├── <b>max collateral     </b>100 pETH per position
+├── <b>expiry             </b>none</pre><p>An order is rejected if its reserved profit exceeds the free pool plus its opening fee, or if it would push total quantity above the exposure cap.</p></section><section id="close" class="sec"><h2><i>07 · settlement</i>Close, or be liquidated</h2><pre class="tree">├── <b>P/L                  </b>quantity × price move, in your favour or against
+├── <b>equity               </b>collateral + P/L − borrow, not below zero
+├── <b>payout on close      </b>equity − closing fee
+├── <b>liquidatable         </b>equity ≤ 5% of size
+├── <b>who can liquidate    </b>anyone, from the positions table
+├── <b>liquidator reward    </b>up to 0.5% of size, from the payout
+├── <b>pool                 </b>receives collateral − payout, so trader losses add to it and profits come out of it</pre></section><section id="fees" class="sec"><h2><i>08 · costs</i>What a trade costs</h2><dl class="rows"><div class="row"><dt>PNG buy or sell</dt><dd>5% of the curve amount, to the perp pool</dd></div><div class="row"><dt>Open a position</dt><dd>0.1% of size</dd></div><div class="row"><dt>Close a position</dt><dd>0.1% of current size, limited to equity</dd></div><div class="row"><dt>Borrow</dt><dd>0.05% of size per day, by the second, taken at settlement</dd></div><div class="row"><dt>Creator payouts</dt><dd>none</dd></div></dl></section><section id="chart" class="sec"><h2><i>09 · price</i>Only this curve</h2><p>Candles are built from edition trades on the collection: price before and after each trade, grouped by 1m, 5m or 1h. The perp reference is the same curve price. There is no outside floor price or oracle.</p></section><section id="server" class="sec"><h2><i>10 · infrastructure</i>One server, one state</h2><p>Every action goes to a Vercel Function that loads the collection and the wallets involved from Upstash Redis, takes short locks on them, runs the engine and writes the result back. The page polls every 4 seconds. Prices, positions and the numbers in the order ticket are computed with the same engine file the server uses.</p><dl class="rows"><div class="row"><dt>Rate limit</dt><dd>40 actions per 10 seconds per IP</dd></div><div class="row"><dt>History kept</dt><dd>last 400 edition trades and 200 closed positions per collection</dd></div><div class="row"><dt>Locks</dt><dd>per collection and per wallet, 5 seconds</dd></div></dl></section><section id="token" class="sec"><h2><i>11 · token</i>The token</h2><p>PNG Trading is a token on Robinhood Chain, launched through Pons. There is one contract, it lives in config.js on GitHub, and the site reads it from there.</p><dl class="rows"><div class="row"><dt>Chain</dt><dd>Robinhood Chain, EVM</dd></div><div class="row"><dt>Launchpad</dt><dd>Pons</dd></div><div class="row"><dt>Ticker</dt><dd>$PNG</dd></div></dl><div class="ca" id="ca"><small>CONTRACT</small><b id="caVal">SOON</b><button class="copy" id="caCopy">COPY</button></div><div class="links"><a class="key buy" data-link="pons" href="https://www.ponsfamily.com/launchpad">Buy on Pons</a><a class="key" data-link="dex" href="https://dexscreener.com/robinhood">Chart</a><a class="key" data-link="x" href="https://x.com">X</a></div></section><section id="roadmap" class="sec"><h2><i>12 · honest</i>Where this is</h2><pre class="tree">├── <b>done               </b>shared curve markets, perp pool, Long/Short, liquidation, create flow, chart
+├── <b>launch             </b>$PNG contract on the site
+├── <b>next               </b>custom artwork uploads, a leaderboard of pETH balances
+├── <b>not planned yet    </b>real ETH or onchain contracts; that needs contracts and an audit first</pre></section><section id="faq" class="sec"><h2><i>13 · questions</i>Questions</h2><div class="faq"><div><b>Is the money real?</b><span>No. pETH is play money. The only real asset is the $PNG token on Pons.</span></div><div><b>Is this the same market for everyone?</b><span>Yes. All visitors trade the same collections on the same server.</span></div><div><b>I bought PNGs. Where is my Long?</b><span>Editions and positions are separate. Open a position in the Long / Short tab once the pool is open.</span></div><div><b>Why can I not open a position?</b><span>The pool needs free profit reserve and the exposure cap has to have room. Lower collateral or leverage, or use max.</span></div><div><b>I cleared my browser. Where is my wallet?</b><span>The key was only in that browser. A new key starts a new wallet.</span></div></div></section>
+  </main>
+</div>
+<div class="foot"><span>PNG Trading</span><span>Robinhood Chain · Pons</span></div>
+<script>
+(function(){
+  var S = window.SITE, CA = (S.CA||"SOON").trim(), HAS = CA !== "SOON" && CA !== "";
+  document.querySelectorAll('[data-link="pons"]').forEach(function(a){ a.href = HAS ? window.PONS_HOME + '/' + CA : window.PONS_HOME; a.target='_blank'; a.rel='noopener'; });
+  document.querySelectorAll('[data-link="dex"]').forEach(function(a){ a.href = HAS ? window.DEX_HOME + '/' + CA : window.DEX_HOME; a.target='_blank'; a.rel='noopener'; });
+  document.querySelectorAll('[data-link="x"]').forEach(function(a){ a.href = S.X_URL || 'https://x.com'; a.target='_blank'; a.rel='noopener'; });
+  var caBox = document.getElementById('ca'), caVal = document.getElementById('caVal'), caCopy = document.getElementById('caCopy');
+  if(caBox){ caVal.textContent = HAS ? CA : 'SOON'; if(HAS){ caBox.classList.add('live'); caBox.addEventListener('click', function(){ if(navigator.clipboard) navigator.clipboard.writeText(CA); caCopy.textContent = 'COPIED'; setTimeout(function(){ caCopy.textContent = 'COPY'; }, 1100); }); } }
+  var links = [].slice.call(document.querySelectorAll('.side a')), secs = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+  function spy(){ var y = window.scrollY + 120, cur = 0; secs.forEach(function(s, i){ if(s && s.offsetTop <= y) cur = i; }); links.forEach(function(a, i){ a.classList.toggle('on', i === cur); }); }
+  addEventListener('scroll', spy, { passive: true }); spy();
+})();
+</script>
+</body>
+</html>
