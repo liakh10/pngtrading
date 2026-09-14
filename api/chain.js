@@ -43,9 +43,17 @@ async function indexed(address, abi, init, fold) {
   const st = saved ? JSON.parse(saved) : { block: String((await deployBlock(address)) - 1n), ...init() };
   const head = await pub.getBlockNumber();
   let from = BigInt(st.block) + 1n, changed = false;
+  let span = STEP;
   while (from <= head) {
-    const to = from + STEP - 1n > head ? head : from + STEP - 1n;
-    const logs = await pub.getLogs({ address, fromBlock: from, toBlock: to });
+    const to = from + span - 1n > head ? head : from + span - 1n;
+    let logs;
+    try { logs = await pub.getLogs({ address, fromBlock: from, toBlock: to }); }
+    catch (e) {
+      /* the Robinhood RPC returns at most 10,000 logs per query: halve the window and retry */
+      if (span > 1n && /exceeds limit|too many|range/i.test(String(e.details || '') + (e.shortMessage || '') + (e.message || ''))) { span /= 2n; continue; }
+      throw e;
+    }
+    if (span < STEP) span *= 2n;
     const decoded = logs.map(l => { try { return { ...decodeEventLog({ abi, data: l.data, topics: l.topics }), block: Number(l.blockNumber), tx: l.transactionHash, i: l.logIndex }; } catch { return null; } }).filter(Boolean);
     if (decoded.length) {
       const times = await blockTimes(decoded.map(d => d.block));
