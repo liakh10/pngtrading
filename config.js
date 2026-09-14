@@ -8,3 +8,6 @@ window.SITE = {
 };
 window.PONS_HOME = "https://www.ponsfamily.com/launchpad";
 window.DEX_HOME  = "https://dexscreener.com/robinhood";
+
+/* PNG Trading contracts on Robinhood Chain: set after deploying through /deploy */
+window.PNG_FACTORY = "";

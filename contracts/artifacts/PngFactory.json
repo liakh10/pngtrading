@@ -1,0 +1,216 @@
+{
+  "contractName": "PngFactory",
+  "compiler": "0.8.28+commit.7893614a.Emscripten.clang",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "implementation_",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "BadName",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "CloneFailed",
+      "type": "error"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "market",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "creator",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "symbol",
+          "type": "string"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "art",
+          "type": "string"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "base",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "supply",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "target",
+          "type": "uint256"
+        }
+      ],
+      "name": "MarketCreated",
+      "type": "event"
+    },
+    {
+      "inputs": [],
+      "name": "count",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "symbol",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "art",
+          "type": "string"
+        },
+        {
+          "internalType": "uint256",
+          "name": "base",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "supply",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "target",
+          "type": "uint256"
+        }
+      ],
+      "name": "create",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "market",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "implementation",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "isMarket",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "from",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "max",
+          "type": "uint256"
+        }
+      ],
+      "name": "list",
+      "outputs": [
+        {
+          "internalType": "address[]",
+          "name": "out",
+          "type": "address[]"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "markets",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x60a034606d57601f61072538819003918201601f19168301916001600160401b03831184841017607157808492602094604052833981010312606d57516001600160a01b0381168103606d5760805260405161069f9081610086823960805181818161012501526103ea0152f35b5f80fd5b634e487b7160e01b5f52604160045260245ffdfe6080806040526004361015610012575f80fd5b5f905f3560e01c90816306661abd146104855750806350fd7367146104195780635c60da1b146103d55780636ec934da14610394578063b1283e77146103535763e6fdb39614610060575f80fd5b346103085760c03660031901126103085760043567ffffffffffffffff8111610308576100919036906004016104c8565b919060243567ffffffffffffffff8111610308576100b39036906004016104c8565b60449291923567ffffffffffffffff8111610308576100d69036906004016104c8565b606435946084359360a4359560028a108015610349575b801561033f575b8015610335575b801561032a575b61031b57604051733d602d80600a3d3981f3363d3d373d3d3d363d7360601b81527f000000000000000000000000000000000000000000000000000000000000000060601b60148201526e5af43d82803e903d91602b57fd5bf360881b60288201526001600160a01b03906037905ff01698891561030c57893b15610308578a8a604051808093639801688560e01b82523360048301526024820160e0905260e482016101af9188610649565b8181036003190160448301526101c690888a610649565b8181036003190160648301526101dd908a8c610649565b8d60848301528b60a48301528c60c483015203815a5f948591f180156102fd576102ea575b508054680100000000000000008110156102d6577f52d07da46a7bf4192639564ae0ec91e39343e395fceb1853b31fbc4ce95cfe1197946102b89461029d60209e999560408f9d9a968e61025e8860016102aa9a01845561049e565b81549060031b9083821b9160018060a01b03901b1916179055815260206001905220600160ff198254161790556040519a60c08c5260c08c0191610649565b918983038f8b0152610649565b918683036040880152610649565b956060840152608083015260a08201528033940390a3604051908152f35b634e487b7160e01b82526041600452602482fd5b6102f691505f906104f6565b5f5f610202565b6040513d5f823e3d90fd5b5f80fd5b6342bcb05b60e11b5f5260045ffd5b63153736cd60e01b5f5260045ffd5b506101008411610102565b50600a82116100fb565b50600282106100f4565b5060208a116100ed565b34610308576020366003190112610308576004355f548110156103085761037b60209161049e565b905460405160039290921b1c6001600160a01b03168152f35b34610308576020366003190112610308576004356001600160a01b03811690819003610308575f526001602052602060ff60405f2054166040519015158152f35b34610308575f366003190112610308576040517f00000000000000000000000000000000000000000000000000000000000000006001600160a01b03168152602090f35b3461030857604036600319011261030857610438602435600435610572565b6040518091602082016020835281518091526020604084019201905f5b818110610463575050500390f35b82516001600160a01b0316845285945060209384019390920191600101610455565b34610308575f366003190112610308576020905f548152f35b5f548110156104b4575f805260205f2001905f90565b634e487b7160e01b5f52603260045260245ffd5b9181601f840112156103085782359167ffffffffffffffff8311610308576020838186019501011161030857565b90601f8019910116810190811067ffffffffffffffff82111761051857604052565b634e487b7160e01b5f52604160045260245ffd5b67ffffffffffffffff81116105185760051b60200190565b9190820180921161055157565b634e487b7160e01b5f52601160045260245ffd5b9190820391821161055157565b91905f54908184101561062d578161058a8286610544565b111561061d57505b61059c8382610565565b906105a68261052c565b916105b460405193846104f6565b8083526105c3601f199161052c565b013660208401378193805b8281106105db5750505050565b6105e48161049e565b905460039190911b1c6001600160a01b0316906106018382610565565b9185518310156104b457602060019360051b87010152016105ce565b610628915083610544565b610592565b5050905060405161063f6020826104f6565b5f81525f36813790565b908060209392818452848401375f828201840152601f01601f191601019056fea26469706673582212200834628e602f36f4d9e89016a8d963e8073a57ee526562a859aac4775607334864736f6c634300081c0033",
+  "deployedSize": 1695
+}

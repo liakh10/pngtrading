@@ -5,7 +5,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>PNG Trading · Mint a PNG. Trade its price.</title>
-<meta name="description" content="PNG editions on a bonding curve with a perp pool. One shared play-money market for everyone, on Robinhood Chain." />
+<meta name="description" content="PNG editions on a bonding curve with a perp pool. Smart contracts on Robinhood Chain, trade from your wallet." />
 <link rel="icon" type="image/png" href="/assets/img/favicon.png" />
 <link rel="apple-touch-icon" href="/assets/img/apple-icon.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -172,15 +172,23 @@ footer nav{display:flex;gap:14px}
   .logo span{display:none}
   .bal{padding:0 9px}
 }
+.wbtn{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;margin-top:8px;text-align:left;font-weight:600}
+.wbtn img{width:24px;height:24px;border-radius:6px}
+.modal{position:fixed;inset:0;z-index:70;display:none;place-items:center;padding:var(--pad);background:rgba(14,15,12,.45)}
+.modal.on{display:grid}
+.modal .panel{width:min(400px,100%);padding:18px}
+.wdot{width:8px;height:8px;border-radius:50%;background:var(--lime2)}
+.note{padding:12px 14px;border:1px dashed var(--line);border-radius:10px;background:#fff;font-size:12px}
+a.tx{text-decoration:underline;text-underline-offset:2px}
 </style>
 </head>
 <body>
 <header class="top">
   <a class="logo" href="#/"><i class="chk"></i>png<span>.trading</span></a>
   <nav class="nav"><a href="#/">Markets</a><a href="#/create">Create</a><a href="/docs">Docs</a><a href="#token">Token</a><a data-link="x" href="https://x.com">X ↗</a></nav>
-  <div class="wal"><span class="bal" title="Play ETH in this browser's wallet"><i></i><span id="bal">…</span></span><button class="btn sm" id="faucet">Faucet</button></div>
+  <div class="wal"><span class="bal" id="balWrap" hidden><i></i><span id="bal">…</span></span><button class="btn sm" id="walletBtn">Connect wallet</button></div>
 </header>
-<div class="beta">Play-money beta · <b>one shared market for everyone</b> · no wallet connection, no real ETH</div>
+<div class="beta">Live on <b>Robinhood Chain</b> · trades are signed from your wallet · contracts are not audited yet</div>
 
 <main id="app" class="wrap"></main>
 
@@ -189,20 +197,24 @@ footer nav{display:flex;gap:14px}
     <div>
       <div class="k">Project token · Robinhood Chain</div>
       <h2><span data-name>PNG Trading</span> / <span data-ticker>$PNG</span></h2>
-      <p class="lead">$PNG is the token for PNG Trading, launched on Pons. It is separate from editions and pETH, and it does not represent a share of any pool.</p>
+      <p class="lead">$PNG is the token for PNG Trading, launched on Pons. It is separate from editions and from every perp pool.</p>
       <div class="ca" id="ca" title="Copy contract"><div class="lbl">CONTRACT</div><div class="addr soon" id="caAddr">soon</div><div class="cp" id="caCp">[ COPY ]</div></div>
     </div>
-    <div class="acts" style="margin:0;flex-direction:column"><a class="btn lime" data-link="pons" href="https://www.ponsfamily.com/launchpad"><img src="/assets/img/pons.png" alt="" />Buy on Pons</a><a class="btn" data-link="dex" href="https://dexscreener.com/robinhood">Chart</a><a class="btn" data-link="x" href="https://x.com" aria-label="X"><img src="/assets/img/x.svg" alt="X" /></a></div>
+    <div class="acts" style="margin:0;flex-direction:column"><a class="btn lime" data-link="pons" href="https://www.ponsfamily.com/launchpad"><img src="/assets/img/pons.png" alt="" style="filter:brightness(0)" />Buy on Pons</a><a class="btn" data-link="dex" href="https://dexscreener.com/robinhood">Chart</a><a class="btn" data-link="x" href="https://x.com" aria-label="X"><img src="/assets/img/x.svg" alt="X" /></a></div>
   </div>
 </section>
 
-<footer><span><span data-name>PNG Trading</span> · Robinhood Chain · play-money beta</span><nav><a href="#/">Markets</a><a href="#/create">Create</a><a href="/docs">Docs</a><a data-link="x" href="https://x.com">X</a></nav></footer>
+<footer><span><span data-name>PNG Trading</span> · Robinhood Chain</span><nav><a href="#/">Markets</a><a href="#/create">Create</a><a href="/docs">Docs</a><a data-link="x" href="https://x.com">X</a></nav></footer>
+<div class="modal" id="wm"><div class="panel"><div class="row"><b class="d" style="font-size:18px">Connect a wallet</b><button class="btn xs" id="wmX">✕</button></div><p class="help" style="margin-top:6px">Robinhood Chain is added to your wallet if it is missing</p><div id="wlist"></div></div></div>
 <div class="toast" id="toast"></div>
 
 <script type="module">
 import * as E from '/lib/engine.js';
+import * as W from '/lib/wallet.js';
+import { decodeEventLog } from 'https://cdn.jsdelivr.net/npm/viem@2.21.55/+esm';
 const S = window.SITE, CA = (S.CA || 'SOON').trim(), HAS = CA !== 'SOON' && CA !== '';
-const $ = id => document.getElementById(id), B = v => BigInt(v);
+const FACTORY = /^0x[0-9a-fA-F]{40}$/.test(window.PNG_FACTORY || '') ? window.PNG_FACTORY : null;
+const $ = id => document.getElementById(id), B = v => BigInt(v ?? 0);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const fmt = (w, dp = 6) => E.fromWei(B(w), dp);
 const num = w => Number(B(w)) / 1e18;
@@ -214,57 +226,84 @@ document.querySelectorAll('[data-link="x"]').forEach(a => { a.href = S.X_URL || 
 if (HAS) { $('caAddr').textContent = CA; $('caAddr').classList.remove('soon'); $('ca').classList.add('live'); }
 $('ca').onclick = () => { if (HAS) { navigator.clipboard && navigator.clipboard.writeText(CA); $('caCp').textContent = '[ COPIED ]'; } else $('caCp').textContent = '[ NOT YET ]'; setTimeout(() => $('caCp').textContent = '[ COPY ]', 1300); };
 
-/* the wallet key lives only in this browser */
-let KEY = null; try { KEY = localStorage.getItem('png:key'); } catch (e) {}
-if (!/^[a-f0-9]{32}$/.test(KEY || '')) { KEY = [...crypto.getRandomValues(new Uint8Array(16))].map(x => x.toString(16).padStart(2, '0')).join(''); try { localStorage.setItem('png:key', KEY); } catch (e) {} }
-
-const ST = { markets: [], player: null, pid: null, now: Math.floor(Date.now() / 1000), market: null };
+const [MKT, FAC] = await Promise.all(['PngMarket', 'PngFactory'].map(n => fetch('/assets/contracts/' + n + '.json').then(r => r.json()).then(j => j.abi)));
+const ST = { markets: [], market: null, now: Math.floor(Date.now() / 1000), w: W.state() };
 let route = null, busy = false, filter = 'all';
-function toast(t, bad) { const el = $('toast'); el.textContent = t; el.className = 'toast on' + (bad ? ' bad' : ''); clearTimeout(toast.h); toast.h = setTimeout(() => el.className = 'toast', 3400); }
-async function api(path, body) {
-  const r = body ? await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key: KEY, ...body }) })
-                 : await fetch(path + (path.includes('?') ? '&' : '?') + 'key=' + KEY, { cache: 'no-store' });
-  let j; try { j = await r.json(); } catch (e) { throw Error('Server is not reachable.'); }
-  if (!r.ok || j.error) throw Error(j.error || 'Request failed.');
+const ARTS = ['frog', 'cat', 'pigeon', 'bot'];
+const artSrc = a => { a = String(a || ''); if (a.startsWith('ipfs://')) return 'https://ipfs.io/ipfs/' + a.slice(7); if (/^https:\/\//.test(a)) return a; return '/assets/img/art-frog.png'; };
+const txa = (h, label = 'tx ↗') => h ? `<a class="tx" href="${W.explorer('tx', h)}" target="_blank" rel="noopener">${label}</a>` : '';
+const me = a => ST.w.address && a && a.toLowerCase() === ST.w.address.toLowerCase();
+const who = a => me(a) ? '<span class="pid me">you</span>' : `<a class="pid" href="${W.explorer('address', a)}" target="_blank" rel="noopener">${esc(W.short(a))}</a>`;
+const walletError = e => e && (e.code === 4001 || /rejected|denied|cancel/i.test(e.shortMessage || e.message || '')) ? 'Cancelled in wallet.' : String((e && (e.shortMessage || e.message)) || 'Something went wrong.').replace(/^.*reverted with the following (reason|signature):\s*/s, '').slice(0, 180);
+function toast(t, bad, ms = 3800) { const el = $('toast'); el.innerHTML = t; el.className = 'toast on' + (bad ? ' bad' : ''); el.style.pointerEvents = 'auto'; clearTimeout(toast.h); toast.h = setTimeout(() => el.className = 'toast', ms); }
+
+/* wallet */
+function paintWallet() {
+  const s = ST.w, b = $('walletBtn');
+  if (!s.address) { b.textContent = 'Connect wallet'; b.className = 'btn sm'; $('balWrap').hidden = true; return; }
+  if (!s.onChain) { b.textContent = 'Switch to Robinhood'; b.className = 'btn sm dn'; $('balWrap').hidden = true; return; }
+  b.innerHTML = W.short(s.address); b.className = 'btn sm';
+  W.pub.getBalance({ address: s.address }).then(v => { $('bal').textContent = fmt(v, 4) + ' ETH'; $('balWrap').hidden = false; }).catch(() => {});
+}
+function openWallets() {
+  const list = W.wallets();
+  $('wlist').innerHTML = list.length ? list.map(w => `<button class="wbtn" data-id="${esc(w.id)}">${w.icon ? `<img src="${esc(w.icon)}" alt="">` : '<i class="wdot"></i>'}${esc(w.name)}</button>`).join('') : '<div class="note" style="margin-top:12px">No wallet in this browser. Install MetaMask or Rabby, or open the site in your wallet app browser.</div>';
+  $('wm').classList.add('on');
+}
+$('walletBtn').onclick = async () => { const s = ST.w; if (s.address && !s.onChain) { try { await W.switchChain(); } catch (e) { toast(esc(walletError(e)), true); } return; } if (s.address) { if (confirm('Disconnect ' + W.short(s.address) + '?')) W.disconnect(); return; } openWallets(); };
+$('wmX').onclick = () => $('wm').classList.remove('on');
+$('wm').onclick = e => { if (e.target === $('wm')) $('wm').classList.remove('on'); };
+$('wlist').onclick = async e => { const b = e.target.closest('.wbtn'); if (!b) return; try { await W.connect(b.dataset.id); $('wm').classList.remove('on'); } catch (err) { toast(esc(walletError(err)), true); } };
+W.onChange(s => { ST.w = s; paintWallet(); load(); });
+async function needWallet() { if (!ST.w.address) { openWallets(); throw Error('Connect a wallet first.'); } if (!ST.w.onChain) await W.switchChain(); }
+
+/* send a contract call and follow it to the receipt */
+async function act(req, btn, label) {
+  if (busy) return null; busy = true; if (btn) btn.disabled = true;
+  try {
+    await needWallet();
+    toast('Confirm in your wallet…', false, 60000);
+    const tx = await W.send(req);
+    toast(esc(label) + ' · waiting for Robinhood Chain · ' + txa(tx.hash), false, 60000);
+    const rc = await tx.wait();
+    if (rc.status !== 'success') throw Error('Transaction reverted.');
+    toast(esc(label) + ' done · ' + txa(tx.hash), false, 6000);
+    paintWallet(); setTimeout(() => load(true), 1500);
+    return rc;
+  } catch (e) { toast(esc(walletError(e)), true, 6000); return null; }
+  finally { busy = false; if (btn) btn.disabled = false; }
+}
+
+/* data */
+async function api(q) {
+  const r = await fetch('/api/chain?f=' + FACTORY + q, { cache: 'no-store' });
+  let j; try { j = await r.json(); } catch { throw Error('Server is not reachable.'); }
+  if (j.error) throw Error(j.error);
   return j;
 }
-function apply(j) { if ('player' in j) ST.player = j.player; if (j.pid) ST.pid = j.pid; if (j.now) ST.now = j.now; if (j.markets) ST.markets = j.markets; if (j.market) ST.market = j.market; paintWallet(); }
-function paintWallet() {
-  const P = ST.player, f = $('faucet');
-  $('bal').textContent = P ? fmt(P.wallet, 4) + ' pETH' : '…';
-  if (!P) { f.disabled = true; return; }
-  const wait = P.faucetAt + 86400 - ST.now;
-  f.disabled = wait > 0; f.textContent = wait > 0 ? 'Faucet ' + Math.ceil(wait / 3600) + 'h' : 'Faucet +5';
-}
-$('faucet').onclick = () => act({ type: 'faucet' }, $('faucet'));
-async function act(body, btn) {
-  if (busy) return null; busy = true; if (btn) btn.disabled = true;
-  try { const j = await api('/api/action', body); apply(j); toast(j.msg); paint(); return j; }
-  catch (e) { toast(e.message, true); return null; }
-  finally { busy = false; if (btn) btn.disabled = false; paintWallet(); }
-}
-
-/* routing */
-function where() { const h = location.hash || '#/'; const m = h.match(/^#\/m\/([a-z0-9-]+)/); return m ? { k: 'm:' + m[1], id: m[1] } : h.startsWith('#/create') ? { k: 'create' } : { k: 'home' }; }
+function where() { const h = location.hash || '#/'; const m = h.match(/^#\/m\/(0x[0-9a-fA-F]{40})/); return m ? { k: 'm:' + m[1].toLowerCase(), id: m[1] } : h.startsWith('#/create') ? { k: 'create' } : { k: 'home' }; }
+let loading = false;
 async function load(force) {
   const w = where();
   if (w.k !== route) { route = w.k; ST.market = null; render(w); force = true; }
+  if (!FACTORY) { paint(); return; }
+  if (loading) return; loading = true;
   try {
-    const j = await api('/api/state' + (w.id ? '?m=' + w.id : '')); apply(j);
-    if (!ST.player) apply(await api('/api/action', { type: 'hello' }));
+    const j = await api((w.id ? '&m=' + w.id : '') + (ST.w.address ? '&u=' + ST.w.address : ''));
+    ST.now = j.now; ST.markets = j.markets || []; if (j.market) ST.market = j.market;
     paint();
-  } catch (e) { if (force) toast(e.message, true); }
+  } catch (e) { if (force) toast(esc(e.message), true); }
+  finally { loading = false; }
 }
 addEventListener('hashchange', () => { if (location.hash === '#token') return; load(true); scrollTo(0, 0); });
-setInterval(() => { if (!document.hidden && !busy) load(); }, 4000);
-setInterval(() => { ST.now++; if (route && route.startsWith('m:') && ST.market) paintPositions(); }, 1000);
+setInterval(() => { if (!document.hidden && !busy) load(); }, 6000);
+setInterval(() => { ST.now++; }, 1000);
 
 function render(w) {
   const app = $('app');
-  if (w.k === 'home') app.innerHTML = HOME;
+  if (w.k === 'home') { app.innerHTML = HOME; bindHome(); }
   else if (w.k === 'create') { app.innerHTML = CREATE; bindCreate(); }
   else { app.innerHTML = MARKET; bindMarket(w.id); }
-  if (w.k === 'home') bindHome();
 }
 function paint() { if (route === 'home') paintHome(); else if (route === 'create') paintCreate(); else paintMarket(); }
 
@@ -274,37 +313,39 @@ const HOME = `
   <div class="panel intro">
     <div class="k">png.trading · Robinhood Chain</div>
     <h1>Mint a PNG.<br>Trade its price.</h1>
-    <p class="lead">Editions start on a bonding curve. Every buy and sell pays 5% into a separate perp pool. When the pool reaches its target, Long and Short open on the same curve.</p>
+    <p class="lead">Editions start on a bonding curve. Every buy and sell pays 5% into a separate perp pool. When the pool reaches its target, Long and Short open on the same curve. All of it is a contract, traded from your wallet.</p>
     <div class="acts"><a class="btn lime" href="#/create">Create collection</a><a class="btn" href="#markets" id="toMarkets">Explore markets →</a></div>
   </div>
   <div class="heroart"><img src="/assets/img/hero.webp" alt="A clear acrylic tile with a transparency checkerboard and a glowing letter P" /></div>
 </section>
 <div class="steps">
-  <div class="panel step"><div class="k">01</div><b>Create</b><p>Artwork, edition limit and starting price.</p></div>
-  <div class="panel step"><div class="k">02</div><b>Buy &amp; sell editions</b><p>Each trade adds 5% to the perp pool.</p></div>
+  <div class="panel step"><div class="k">01</div><b>Create</b><p>Artwork, edition limit and starting price, one transaction.</p></div>
+  <div class="panel step"><div class="k">02</div><b>Buy &amp; sell editions</b><p>ERC-721 PNGs. Each trade adds 5% to the perp pool.</p></div>
   <div class="panel step"><div class="k">03</div><b>Long or short</b><p>1–3× on the curve price once the pool opens.</p></div>
 </div>
 <section class="s" id="markets">
-  <div class="head"><div><div class="k">Markets</div><h2>Collections</h2><p class="lead">Buy editions while the pool fills. Trade the curve price when perps open. Everyone on this site trades the same markets.</p></div>
+  <div class="head"><div><div class="k">Markets</div><h2>Collections</h2><p class="lead">Buy editions while the pool fills. Trade the curve price when perps open.</p></div>
   <div class="seg" id="filt"><button data-f="all" class="on">All</button><button data-f="fund">Funding</button><button data-f="live">Perps open</button></div></div>
-  <div class="grid" id="grid"><div class="empty">Loading collections…</div></div>
+  <div class="grid" id="grid"><div class="empty">Reading Robinhood Chain…</div></div>
 </section>`;
 function bindHome() {
   $('filt').onclick = e => { const b = e.target.closest('button'); if (!b) return; filter = b.dataset.f; $('filt').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); paintHome(); };
   $('toMarkets').onclick = e => { e.preventDefault(); $('markets').scrollIntoView({ behavior: 'smooth' }); };
 }
 function card(s) {
-  const pct = s.live ? 100 : Number(B(s.pool) * 10000n / B(s.target)) / 100;
-  return `<a class="panel card" href="#/m/${s.id}"><div class="art chk"><img src="/assets/img/art-${esc(s.art)}.png" alt="" loading="lazy"></div>
+  const live = s.stats.live, pct = live ? 100 : Number(B(s.stats.pool) * 10000n / B(s.terms.target)) / 100;
+  return `<a class="panel card" href="#/m/${s.market}"><div class="art chk"><img src="${esc(artSrc(s.art))}" alt="" loading="lazy"></div>
   <div class="cb"><div class="row"><b>${esc(s.name)}</b><span class="sym">${esc(s.symbol)}</span></div>
-  <div class="row"><span>${fmt(s.price, 6)} pETH</span><span class="${s.change >= 0 ? 'up' : 'dn'}">${s.change >= 0 ? '+' : ''}${s.change.toFixed(2)}%</span></div>
-  <span class="stage ${s.live ? 'live' : ''}">${s.live ? 'Perps open' : 'Funding · ' + pct.toFixed(1) + '%'}</span>
+  <div class="row"><span>${fmt(s.price, 6)} ETH</span><span class="mut">vol ${fmt(s.stats.volume, 3)}</span></div>
+  <span class="stage ${live ? 'live' : ''}">${live ? 'Perps open' : 'Funding · ' + pct.toFixed(1) + '%'}</span>
   <div class="bar"><i style="width:${Math.min(100, pct)}%"></i></div>
-  <div class="row mut"><span>${s.supply} / ${s.cap} minted</span><span>vol ${fmt(s.volume, 3)}</span></div></div></a>`;
+  <div class="row mut"><span>${s.stats.supply} / ${s.terms.maxSupply} minted</span><span>${esc(W.short(s.creator))}</span></div></div></a>`;
 }
 function paintHome() {
-  const list = ST.markets.filter(s => filter === 'all' || (filter === 'live' ? s.live : !s.live));
-  $('grid').innerHTML = list.length ? list.map(card).join('') : '<div class="empty">No collections here yet. <a href="#/create" style="text-decoration:underline">Create one</a>.</div>';
+  if (!$('grid')) return;
+  if (!FACTORY) { $('grid').innerHTML = '<div class="empty">Contracts go live shortly. Markets appear here the moment the factory is deployed.</div>'; return; }
+  const list = ST.markets.filter(s => filter === 'all' || (filter === 'live' ? s.stats.live : !s.stats.live));
+  $('grid').innerHTML = list.length ? list.map(card).join('') : '<div class="empty">No collections here yet. <a href="#/create" style="text-decoration:underline">Create the first one</a>.</div>';
 }
 
 /* ---------- market ---------- */
@@ -312,20 +353,20 @@ const MARKET = `
 <a class="k" href="#/" style="display:inline-block;margin-top:20px">← Collections</a>
 <div class="panel mtop">
   <div class="art chk"><img id="mArt" alt=""></div>
-  <div><span class="stage" id="mStage">…</span><h2 id="mName">Loading…</h2><div class="mut" id="mSub"></div></div>
-  <div class="right acts" style="margin:0"><button class="btn sm" id="mRefresh">Refresh</button><button class="btn sm" id="mShare">Copy link</button></div>
+  <div><span class="stage" id="mStage">…</span><h2 id="mName">Reading chain…</h2><div class="mut" id="mSub"></div></div>
+  <div class="right acts" style="margin:0"><a class="btn sm" id="mScan" target="_blank" rel="noopener">Contract ↗</a><button class="btn sm" id="mShare">Copy link</button></div>
 </div>
 <div class="panel fund"><div class="row"><b class="d" id="fTitle" style="font-size:15px">Perp pool</b><span id="fValue"></span></div><div class="bar"><i id="fBar"></i></div><div class="help" id="fHelp"></div></div>
 <div class="lay">
   <div>
     <div class="panel">
       <div class="stats"><div><span class="k">Curve price</span><b id="sPrice">—</b></div><div><span class="k">Minted</span><b id="sSupply">—</b></div><div><span class="k">Curve volume</span><b id="sVol">—</b></div><div><span class="k">Holders</span><b id="sHolders">—</b></div></div>
-      <div class="charthead"><span class="k">Edition trades · pETH per PNG</span><select id="tf" class="btn xs"><option value="60">1m</option><option value="300" selected>5m</option><option value="3600">1h</option></select></div>
+      <div class="charthead"><span class="k">Edition trades · ETH per PNG</span><select id="tf" class="btn xs"><option value="60">1m</option><option value="300" selected>5m</option><option value="3600">1h</option></select></div>
       <div id="chart"></div>
     </div>
     <div class="panel box"><div class="bh"><b>Open positions</b><span class="mut" id="posCount"></span></div><div class="tscroll"><table><thead><tr><th>ID / side</th><th>Owner</th><th class="n">Collateral</th><th class="n">Entry</th><th class="n">P/L</th><th class="n">Borrow</th><th class="n">Payout</th><th></th></tr></thead><tbody id="posRows"></tbody></table></div></div>
-    <div class="panel box"><div class="bh"><b>Recent edition trades</b><span class="mut" id="trCount"></span></div><div class="tscroll"><table><thead><tr><th>Time</th><th>Side</th><th class="n">PNGs</th><th class="n">Curve amount</th><th class="n">Price after</th><th>Wallet</th></tr></thead><tbody id="trRows"></tbody></table></div></div>
-    <div class="panel box" id="closedBox" hidden><div class="bh"><b>Your closed positions</b></div><div class="tscroll"><table><thead><tr><th>ID / side</th><th>How</th><th class="n">Collateral</th><th class="n">Entry → exit</th><th class="n">Returned</th></tr></thead><tbody id="closedRows"></tbody></table></div></div>
+    <div class="panel box"><div class="bh"><b>Recent edition trades</b><span class="mut" id="trCount"></span></div><div class="tscroll"><table><thead><tr><th>Time</th><th>Side</th><th class="n">PNGs</th><th class="n">Curve amount</th><th class="n">Price after</th><th>Wallet</th><th></th></tr></thead><tbody id="trRows"></tbody></table></div></div>
+    <div class="panel box" id="closedBox" hidden><div class="bh"><b>Closed positions</b></div><div class="tscroll"><table><thead><tr><th>ID / side</th><th>Owner</th><th>How</th><th class="n">Collateral</th><th class="n">Entry → exit</th><th class="n">Returned</th><th></th></tr></thead><tbody id="closedRows"></tbody></table></div></div>
   </div>
   <div class="ticket">
     <div class="panel">
@@ -339,7 +380,7 @@ const MARKET = `
       </div>
       <div class="tk" id="tkP" hidden>
         <div class="side" id="pSide"><button data-s="long" class="on">Long</button><button data-s="short">Short</button></div>
-        <div class="f"><label>Collateral / pETH <a id="pMax">max</a></label><input id="pMargin" type="text" inputmode="decimal" value="0.005"></div>
+        <div class="f"><label>Collateral / ETH <a id="pMax">max</a></label><input id="pMargin" type="text" inputmode="decimal" value="0.005"></div>
         <div class="f"><label>Leverage</label><div class="levs" id="pLev"><button data-l="1">1×</button><button data-l="2">2×</button><button data-l="3" class="on">3×</button></div></div>
         <div class="q"><div><span>Position size</span><b id="pNot">—</b></div><div><span>Opening fee · 0.1%</span><b id="pFee">—</b></div><div><span>Free profit reserve</span><b id="pFree">—</b></div><div><span>Exposure left</span><b id="pCap">—</b></div><div><span>Max collateral now</span><b id="pMaxV">—</b></div></div>
         <button class="btn ink" id="pGo" disabled>Open Long</button>
@@ -351,71 +392,81 @@ const MARKET = `
 </div>`;
 let nSide = 'buy', pSide = 'long', pLev = 3, curId = null;
 function bindMarket(id) {
-  curId = id;
+  curId = id.toLowerCase();
+  $('mScan').href = W.explorer('address', id);
   const tab = n => { $('tabN').classList.toggle('on', n); $('tabP').classList.toggle('on', !n); $('tkN').hidden = !n; $('tkP').hidden = n; };
   $('tabN').onclick = () => tab(true); $('tabP').onclick = () => tab(false);
   $('nSide').onclick = e => { const b = e.target.closest('button'); if (!b) return; nSide = b.dataset.s; $('nSide').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); quoteN(); };
   $('pSide').onclick = e => { const b = e.target.closest('button'); if (!b) return; pSide = b.dataset.s; $('pSide').querySelectorAll('button').forEach(x => { x.classList.toggle('on', x === b); x.classList.toggle('red', x === b && pSide === 'short'); }); quoteP(); };
   $('pLev').onclick = e => { const b = e.target.closest('button'); if (!b) return; pLev = +b.dataset.l; $('pLev').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); quoteP(); };
   $('nQty').oninput = quoteN; $('pMargin').oninput = quoteP; $('tf').onchange = () => ST.market && drawChart(ST.market);
-  $('pMax').onclick = () => { const M = toM(); if (!M) return; const m = E.maxCollateral(M, pLev, pSide === 'long'); $('pMargin').value = E.fromWei(m * 99n / 100n, 9); quoteP(); };
-  $('nGo').onclick = () => act({ type: nSide, m: id, n: parseInt($('nQty').value, 10) }, $('nGo'));
-  $('pGo').onclick = () => act({ type: 'open', m: id, side: pSide, margin: $('pMargin').value.trim(), lev: pLev }, $('pGo'));
-  $('mRefresh').onclick = () => load(true);
+  $('pMax').onclick = () => { const M = toM(); if (!M) return; const m = E.maxCollateral(M, pLev, pSide === 'long'); $('pMargin').value = E.fromWei(m * 98n / 100n, 9); quoteP(); };
+  $('nGo').onclick = () => {
+    const M = toM(), v = ST.market; if (!M) return;
+    const n = parseInt($('nQty').value, 10) || 0;
+    try {
+      if (nSide === 'buy') { const q = E.quoteEditions(M, n, true); act({ address: v.market, abi: MKT, functionName: 'buy', args: [BigInt(n)], value: q.total + q.total / 50n }, $('nGo'), 'Buying ' + n + ' PNG' + (n > 1 ? 's' : '')); }
+      else { const q = E.quoteEditions(M, n, false); const ids = v.mine.slice(0, n).map(BigInt); if (ids.length < n) throw Error('You own ' + v.mine.length + ' editions.'); act({ address: v.market, abi: MKT, functionName: 'sell', args: [ids, q.total * 98n / 100n] }, $('nGo'), 'Selling ' + n + ' PNG' + (n > 1 ? 's' : '')); }
+    } catch (e) { toast(esc(e.message), true); }
+  };
+  $('pGo').onclick = () => {
+    const v = ST.market; if (!v) return;
+    try { const m = E.toWei($('pMargin').value || '0', 'Collateral'), fee = E.bps(m * BigInt(pLev), E.OPEN_BPS); act({ address: v.market, abi: MKT, functionName: 'open', args: [pSide === 'long', m, pLev], value: m + fee }, $('pGo'), 'Opening ' + (pSide === 'long' ? 'Long' : 'Short')); }
+    catch (e) { toast(esc(e.message), true); }
+  };
   $('mShare').onclick = () => { navigator.clipboard && navigator.clipboard.writeText(location.href); toast('Link copied.'); };
-  $('posRows').onclick = e => { const b = e.target.closest('button[data-id]'); if (b) act({ type: 'close', m: id, id: +b.dataset.id }, b); };
+  $('posRows').onclick = e => { const b = e.target.closest('button[data-id]'); if (b) act({ address: ST.market.market, abi: MKT, functionName: 'close', args: [BigInt(b.dataset.id)] }, b, b.textContent.trim() + ' #' + b.dataset.id); };
 }
 function toM() {
   const v = ST.market; if (!v) return null;
-  return { T: Object.fromEntries(Object.entries(v.T).map(([k, x]) => [k, B(x)])), supply: B(v.supply), curve: B(v.curve), pool: B(v.pool), reserved: B(v.reserved), gross: B(v.gross), live: v.live };
+  const t = v.terms;
+  return { T: { base: B(t.base), supply: B(t.maxSupply), step: B(t.step), maximum: B(t.maximum), principal: B(t.principal), target: B(t.target), capacity: B(t.capacity) }, supply: B(v.stats.supply), curve: B(v.stats.curve), pool: B(v.stats.pool), reserved: B(v.stats.reserved), gross: B(v.stats.gross), live: v.stats.live };
 }
 function quoteN() {
   const M = toM(); if (!M) return;
-  const owned = ST.market.myEditions.length; $('nOwned').textContent = 'you own ' + owned;
+  const owned = ST.market.mine.length; $('nOwned').textContent = ST.w.address ? 'you own ' + owned : '';
   try {
     const q = E.quoteEditions(M, parseInt($('nQty').value, 10) || 0, nSide === 'buy');
-    if (nSide === 'sell' && q.n > BigInt(owned)) throw Error('You own ' + owned + ' editions.');
-    $('nRaw').textContent = fmt(q.raw, 9); $('nFee').textContent = fmt(q.fee, 9); $('nTot').textContent = fmt(q.total, 9) + ' pETH';
+    if (nSide === 'sell' && q.n > BigInt(owned)) throw Error(ST.w.address ? 'You own ' + owned + ' editions.' : 'Connect a wallet to sell.');
+    $('nRaw').textContent = fmt(q.raw, 9); $('nFee').textContent = fmt(q.fee, 9); $('nTot').textContent = fmt(q.total, 9) + ' ETH';
     $('nTotL').textContent = nSide === 'buy' ? 'Total paid' : 'You receive'; $('nGo').disabled = false; $('nGo').textContent = nSide === 'buy' ? 'Buy PNGs' : 'Sell PNGs';
-    $('nHelp').textContent = 'Buying mints editions and raises the price one step each. Selling burns them.';
+    $('nHelp').textContent = nSide === 'buy' ? 'Sends 2% extra in case the price moves; the contract refunds anything above the exact cost.' : 'Burns your lowest-numbered editions. Protected to 98% of the quote.';
   } catch (e) { $('nRaw').textContent = $('nFee').textContent = $('nTot').textContent = '—'; $('nGo').disabled = true; $('nHelp').textContent = e.message; }
 }
 function quoteP() {
   const M = toM(); if (!M) return;
   $('pGo').textContent = pSide === 'long' ? 'Open Long' : 'Open Short'; $('pGo').className = 'btn ' + (pSide === 'long' ? 'ink' : 'dn');
-  $('pFree').textContent = fmt(M.pool - M.reserved, 9); $('pCap').textContent = E.fromWei((M.T.capacity - M.gross) * E.price(M) / E.WEI, 6) + ' pETH size';
+  $('pFree').textContent = fmt(M.pool - M.reserved, 9); $('pCap').textContent = E.fromWei((M.T.capacity - M.gross) * E.price(M) / E.WEI, 6) + ' ETH size';
   const mx = E.maxCollateral(M, pLev, pSide === 'long'); $('pMaxV').textContent = fmt(mx, 9) + ' at ' + pLev + '×';
-  if (!M.live) { $('pGo').disabled = true; $('pHelp').textContent = 'Perps open when the pool reaches ' + fmt(M.T.target, 6) + ' pETH in fees.'; return; }
-  try { const m = E.toWei($('pMargin').value || '0', 'Collateral'), n = m * BigInt(pLev); $('pNot').textContent = fmt(n, 9); $('pFee').textContent = fmt(E.bps(n, E.OPEN_BPS), 9); $('pGo').disabled = m <= 0n; $('pHelp').textContent = m > mx ? 'Above the current maximum, the server will reject it. Reduce collateral or leverage.' : 'No expiry. Borrow 0.05% of size per day. Liquidation at 5% equity, anyone can trigger it.'; }
+  if (!M.live) { $('pGo').disabled = true; $('pHelp').textContent = 'Perps open when the pool reaches ' + fmt(M.T.target, 6) + ' ETH in fees.'; return; }
+  try { const m = E.toWei($('pMargin').value || '0', 'Collateral'), n = m * BigInt(pLev); $('pNot').textContent = fmt(n, 9); $('pFee').textContent = fmt(E.bps(n, E.OPEN_BPS), 9); $('pGo').disabled = m <= 0n; $('pHelp').textContent = m > mx ? 'Above the current maximum, the contract will reject it. Reduce collateral or leverage.' : 'No expiry. Borrow 0.05% of size per day. Liquidation at 5% equity, anyone can trigger it.'; }
   catch (e) { $('pNot').textContent = $('pFee').textContent = '—'; $('pGo').disabled = true; $('pHelp').textContent = e.message; }
 }
-const who = p => p === ST.pid ? '<span class="pid me">you</span>' : p === 'house' ? '<span class="pid">house</span>' : '<span class="pid">' + esc(String(p).slice(0, 6)) + '</span>';
 const tm = t => new Date(t * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 function paintMarket() {
-  const v = ST.market; if (!v || v.id !== curId) return;
-  const M = toM(), pct = v.live ? 100 : Number(M.pool * 10000n / M.T.target) / 100;
-  $('mArt').src = '/assets/img/art-' + v.art + '.png'; $('mName').textContent = v.name;
-  $('mStage').textContent = v.live ? 'Perps open' : 'Funding'; $('mStage').classList.toggle('live', v.live);
-  $('mSub').textContent = v.symbol + ' · ' + v.T.supply + ' editions max · start ' + fmt(v.T.base, 6) + ' pETH · by ' + (v.creator === ST.pid ? 'you' : v.creator === 'house' ? 'house' : v.creator.slice(0, 6));
-  $('fTitle').textContent = v.live ? 'Perp reserve' : 'Funding the perp pool';
-  $('fValue').textContent = v.live ? fmt(v.pool, 6) + ' pETH' : fmt(v.pool, 6) + ' / ' + fmt(v.T.target, 6) + ' pETH';
+  const v = ST.market; if (!v || v.market.toLowerCase() !== curId) { if (!FACTORY && $('mName')) $('mName').textContent = 'Contracts are not deployed yet'; return; }
+  const M = toM(), live = v.stats.live, pct = live ? 100 : Number(M.pool * 10000n / M.T.target) / 100;
+  $('mArt').src = artSrc(v.art); $('mName').textContent = v.name;
+  $('mStage').textContent = live ? 'Perps open' : 'Funding'; $('mStage').classList.toggle('live', live);
+  $('mSub').innerHTML = esc(v.symbol) + ' · ' + v.terms.maxSupply + ' editions max · start ' + fmt(v.terms.base, 6) + ' ETH · by ' + who(v.creator);
+  $('fTitle').textContent = live ? 'Perp reserve' : 'Funding the perp pool';
+  $('fValue').textContent = live ? fmt(M.pool, 6) + ' ETH' : fmt(M.pool, 6) + ' / ' + fmt(M.T.target, 6) + ' ETH';
   $('fBar').style.width = Math.min(100, pct) + '%';
-  $('fHelp').textContent = v.live ? 'The target was reached by edition fees. Long and Short are enabled.' : fmt(M.T.target - M.pool, 6) + ' pETH of fees to go. Every buy and sell pays 5% into this pool.';
-  $('sPrice').textContent = fmt(v.price, 6); $('sSupply').textContent = v.supply + ' / ' + v.T.supply; $('sVol').textContent = fmt(v.volume, 4); $('sHolders').textContent = v.holders;
+  $('fHelp').textContent = live ? 'The target was reached by edition fees. Long and Short are enabled.' : fmt(M.T.target - M.pool, 6) + ' ETH of fees to go. Every buy and sell pays 5% into this pool.';
+  $('sPrice').textContent = fmt(v.price, 6); $('sSupply').textContent = v.stats.supply + ' / ' + v.terms.maxSupply; $('sVol').textContent = fmt(v.stats.volume, 4); $('sHolders').textContent = v.holders;
   drawChart(v); quoteN(); quoteP(); paintPositions();
   $('trCount').textContent = v.trades.length + ' trades';
-  $('trRows').innerHTML = v.trades.slice(-12).reverse().map(t => `<tr><td>${tm(t.t)}</td><td class="${t.side === 'buy' ? 'up' : 'dn'}">${t.side}</td><td class="n">${t.n}</td><td class="n">${fmt(t.raw, 6)}</td><td class="n">${fmt(t.after, 6)}</td><td>${who(t.pid)}</td></tr>`).join('') || '<tr><td colspan="6" class="mut">No trades yet. The first buy starts the chart.</td></tr>';
-  $('closedBox').hidden = !v.mineClosed.length;
-  $('closedRows').innerHTML = v.mineClosed.slice().reverse().map(p => `<tr><td>#${p.id} · ${p.long ? 'Long' : 'Short'} ${p.lev}×</td><td>${p.how}</td><td class="n">${fmt(p.margin, 6)}</td><td class="n">${fmt(p.entry, 6)} → ${fmt(p.exitPrice, 6)}</td><td class="n">${fmt(p.payout, 6)}</td></tr>`).join('');
-  $('risk').innerHTML = `<div><span>Curve redemption reserve</span><b>${fmt(v.curve, 6)}</b></div><div><span>Perp reserve / committed</span><b>${fmt(v.pool, 6)} / ${fmt(v.reserved, 6)}</b></div><div><span>Exposure used</span><b>${fmt(v.gross, 3)} / ${fmt(v.T.capacity, 3)} PNG</b></div><div><span>Price range</span><b>${fmt(v.T.base, 6)} – ${fmt(v.T.maximum, 6)}</b></div><div><span>Price source</span><b>this curve</b></div><p class="help" style="margin-top:4px">Positions track the curve price, not an outside floor. Profit is capped by the curve ceiling and fully reserved at entry.</p>`;
+  $('trRows').innerHTML = v.trades.slice(-12).reverse().map(t => `<tr><td>${tm(t.t)}</td><td class="${t.side === 'buy' ? 'up' : 'dn'}">${t.side}</td><td class="n">${t.n}</td><td class="n">${fmt(t.raw, 6)}</td><td class="n">${fmt(t.after, 6)}</td><td>${who(t.who)}</td><td>${txa(t.tx)}</td></tr>`).join('') || '<tr><td colspan="7" class="mut">No trades yet. The first buy starts the chart.</td></tr>';
+  $('closedBox').hidden = !v.closed.length;
+  $('closedRows').innerHTML = v.closed.map(p => `<tr><td>#${p.id} · ${p.long ? 'Long' : 'Short'} ${p.lev}×</td><td>${who(p.owner)}</td><td>${p.liquidated ? '<span class="dn">liquidated</span>' : 'closed'}</td><td class="n">${fmt(p.margin, 6)}</td><td class="n">${fmt(p.entry, 6)} → ${fmt(p.exitPrice, 6)}</td><td class="n">${fmt(p.payout, 6)}</td><td>${txa(p.tx)}</td></tr>`).join('');
+  $('risk').innerHTML = `<div><span>Curve redemption reserve</span><b>${fmt(M.curve, 6)}</b></div><div><span>Perp reserve / committed</span><b>${fmt(M.pool, 6)} / ${fmt(M.reserved, 6)}</b></div><div><span>Open margins</span><b>${fmt(v.stats.margins, 6)}</b></div><div><span>Exposure used</span><b>${fmt(M.gross, 3)} / ${fmt(M.T.capacity, 3)} PNG</b></div><div><span>Price range</span><b>${fmt(M.T.base, 6)} – ${fmt(M.T.maximum, 6)}</b></div><p class="help" style="margin-top:4px">The contract balance always equals curve reserve + pool + open margins. Profit is capped by the curve ceiling and reserved at entry.</p>`;
 }
 function paintPositions() {
   const v = ST.market; if (!v) return;
-  const M = toM(), now = ST.now;
-  const rows = v.open.map(p0 => {
-    const pos = { ...p0, margin: B(p0.margin), notional: B(p0.notional), entry: B(p0.entry), qty: B(p0.qty), reserve: B(p0.reserve) };
-    const k = E.mark(M, pos, now), act = pos.mine ? `<button class="btn xs" data-id="${pos.id}">Close</button>` : k.liquidatable ? `<button class="btn xs dn" data-id="${pos.id}">Liquidate</button>` : '<span class="mut">—</span>';
-    return `<tr><td>#${pos.id} · <b class="${pos.long ? 'up' : 'dn'}">${pos.long ? 'Long' : 'Short'}</b> ${pos.lev}×</td><td>${who(pos.pid)}</td><td class="n">${fmt(pos.margin, 6)}</td><td class="n">${fmt(pos.entry, 6)}</td><td class="n ${k.pnl >= 0n ? 'up' : 'dn'}">${k.pnl >= 0n ? '+' : ''}${E.fromWei(k.pnl, 6)}</td><td class="n">${fmt(k.borrow, 9)}</td><td class="n">${fmt(k.payout, 6)}</td><td class="n">${act}</td></tr>`;
+  const rows = v.open.map(p => {
+    const k = p.mark || {}, pnl = B(k.pnl);
+    const action = p.mine ? `<button class="btn xs" data-id="${p.id}">Close</button>` : k.liquidatable ? `<button class="btn xs dn" data-id="${p.id}">Liquidate</button>` : '<span class="mut">—</span>';
+    return `<tr><td>#${p.id} · <b class="${p.long ? 'up' : 'dn'}">${p.long ? 'Long' : 'Short'}</b> ${p.lev}×</td><td>${who(p.owner)}</td><td class="n">${fmt(p.margin, 6)}</td><td class="n">${fmt(p.entry, 6)}</td><td class="n ${pnl >= 0n ? 'up' : 'dn'}">${pnl >= 0n ? '+' : ''}${E.fromWei(pnl, 6)}</td><td class="n">${fmt(k.borrow, 9)}</td><td class="n">${fmt(k.payout, 6)}</td><td class="n">${action}</td></tr>`;
   });
   $('posCount').textContent = v.open.length + ' open';
   $('posRows').innerHTML = rows.join('') || '<tr><td colspan="8" class="mut">No open positions.</td></tr>';
@@ -427,11 +478,11 @@ function drawChart(v) {
   for (const t of tr) { const s = Math.floor(t.t / tf) * tf, b = num(t.before), a = num(t.after), last = cs[cs.length - 1];
     if (!last || last.time !== s) cs.push({ time: s, open: b, high: Math.max(b, a), low: Math.min(b, a), close: a, vol: num(t.raw) });
     else { last.high = Math.max(last.high, a, b); last.low = Math.min(last.low, a, b); last.close = a; last.vol += num(t.raw); } }
-  const c = cs.slice(-60), W = 800, H = 280, L = 10, R = 86, T = 16, Bt = 44, iw = W - L - R, ih = H - T - Bt;
+  const c = cs.slice(-60), Wd = 800, H = 280, L = 10, R = 86, T = 16, Bt = 44, iw = Wd - L - R, ih = H - T - Bt;
   let lo = Math.min(...c.map(x => x.low)), hi = Math.max(...c.map(x => x.high)); const pad = (hi - lo || hi * .02 || 1e-6) * .12; lo -= pad; hi += pad;
   const y = p => T + (hi - p) / (hi - lo) * ih, x = i => L + (i + .5) * iw / c.length, w = Math.min(16, iw / c.length * .6), vmax = Math.max(...c.map(k => k.vol), 1e-18);
-  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Candle chart of edition trades">`;
-  for (let i = 0; i < 5; i++) { const p = lo + (hi - lo) * i / 4, yy = y(p); s += `<line x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}" stroke="#ececec"/><text x="${W - R + 8}" y="${yy + 4}" font-size="11" fill="#8a8a84" font-family="Chivo Mono,monospace">${p.toFixed(p < .001 ? 7 : 5)}</text>`; }
+  let s = `<svg viewBox="0 0 ${Wd} ${H}" role="img" aria-label="Candle chart of edition trades">`;
+  for (let i = 0; i < 5; i++) { const p = lo + (hi - lo) * i / 4, yy = y(p); s += `<line x1="${L}" x2="${Wd - R}" y1="${yy}" y2="${yy}" stroke="#ececec"/><text x="${Wd - R + 8}" y="${yy + 4}" font-size="11" fill="#8a8a84" font-family="Chivo Mono,monospace">${p.toFixed(p < .001 ? 7 : 5)}</text>`; }
   c.forEach((k, i) => { const col = k.close >= k.open ? '#1a8a4a' : '#e0443a', o = y(k.open), cl = y(k.close);
     s += `<line x1="${x(i)}" x2="${x(i)}" y1="${y(k.high)}" y2="${y(k.low)}" stroke="${col}" stroke-width="1.5"/><rect x="${x(i) - w / 2}" y="${Math.min(o, cl)}" width="${w}" height="${Math.max(2, Math.abs(o - cl))}" fill="${col}" rx="1.5"/><rect x="${x(i) - w / 2}" y="${H - 24 - k.vol / vmax * 16}" width="${w}" height="${k.vol / vmax * 16}" fill="${col}" opacity=".25"/>`; });
   [0, c.length - 1].filter((v2, i, a) => a.indexOf(v2) === i).forEach(i => s += `<text x="${x(i)}" y="${H - 6}" font-size="10" fill="#8a8a84" text-anchor="middle" font-family="Chivo Mono,monospace">${tm(c[i].time)}</text>`);
@@ -444,11 +495,12 @@ const CREATE = `
 <div class="create">
   <div class="panel tk" style="padding:clamp(16px,2.6vw,26px)">
     <div class="k">Create a collection</div><h2>Start with your PNGs.</h2>
-    <p class="help">Your collection gets a bonding curve and a perp pool in one step. Terms are fixed at launch. Up to 3 per wallet per day.</p>
-    <div class="two"><div class="f"><label>Collection name</label><input id="cName" maxlength="32" placeholder="Robin Frogs"></div><div class="f"><label>Symbol</label><input id="cSym" maxlength="8" placeholder="FROG"></div></div>
-    <div class="f"><label>Artwork</label><div class="arts" id="cArts">${['frog', 'cat', 'pigeon', 'bot'].map((a, i) => `<button class="chk${i ? '' : ' on'}" data-a="${a}" aria-label="${a}"><img src="/assets/img/art-${a}.png" alt=""></button>`).join('')}</div></div>
-    <div class="two"><div class="f"><label>Maximum editions</label><input id="cSupply" type="number" min="10" max="10000" step="1" value="100"></div><div class="f"><label>Starting price / pETH</label><input id="cBase" type="text" inputmode="decimal" value="0.01"></div></div>
-    <div class="f"><label>Perp opening target / pETH <span>optional</span></label><input id="cTarget" type="text" inputmode="decimal" placeholder="minimum"></div>
+    <p class="help">One transaction creates the market contract with its bonding curve and perp pool. Terms are fixed forever.</p>
+    <div class="two"><div class="f"><label>Collection name</label><input id="cName" maxlength="32" placeholder="Robin Frogs"></div><div class="f"><label>Symbol</label><input id="cSym" maxlength="10" placeholder="FROG"></div></div>
+    <div class="f"><label>Artwork</label><div class="arts" id="cArts">${ARTS.map((a, i) => `<button class="chk${i ? '' : ' on'}" data-a="${a}" aria-label="${a}"><img src="/assets/img/art-${a}.png" alt=""></button>`).join('')}</div></div>
+    <div class="f"><label>Or your own image <span>https:// or ipfs:// link to a PNG</span></label><input id="cArtUrl" maxlength="256" placeholder="ipfs://…"></div>
+    <div class="two"><div class="f"><label>Maximum editions</label><input id="cSupply" type="number" min="10" max="10000" step="1" value="100"></div><div class="f"><label>Starting price / ETH</label><input id="cBase" type="text" inputmode="decimal" value="0.001"></div></div>
+    <div class="f"><label>Perp opening target / ETH <span>optional</span></label><input id="cTarget" type="text" inputmode="decimal" placeholder="minimum"></div>
     <div class="q" id="cQ"></div>
     <div class="f"><label>Check collateral at opening</label><div class="levs" id="cLev"><button data-l="1">1×</button><button data-l="2">2×</button><button data-l="3" class="on">3×</button></div></div>
     <button class="btn ink" id="cGo">Launch collection</button>
@@ -456,32 +508,40 @@ const CREATE = `
   </div>
   <div class="panel prev"><div class="art chk"><img id="pvArt" src="/assets/img/art-frog.png" alt=""></div><div class="cb"><div class="row"><b id="pvName">Your collection</b><span class="sym" id="pvSym">SYMBOL</span></div><span class="stage">Funding · 0%</span><div class="bar"><i style="width:0"></i></div><p class="help">Buy &amp; sell first. Perps open as fees build the pool.</p></div></div>
 </div>`;
-let cArt = 'frog', cLev = 3;
+let cArt = 'frog', cLev = 3, cTerms = null;
+const cArtValue = () => { const u = $('cArtUrl').value.trim(); return u || location.origin + '/assets/img/art-' + cArt + '.png'; };
 function bindCreate() {
-  $('cArts').onclick = e => { const b = e.target.closest('button'); if (!b) return; cArt = b.dataset.a; $('cArts').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); paintCreate(); };
+  $('cArts').onclick = e => { const b = e.target.closest('button'); if (!b) return; cArt = b.dataset.a; $('cArtUrl').value = ''; $('cArts').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); paintCreate(); };
   $('cLev').onclick = e => { const b = e.target.closest('button'); if (!b) return; cLev = +b.dataset.l; $('cLev').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); paintCreate(); };
-  ['cName', 'cSym', 'cSupply', 'cBase', 'cTarget'].forEach(i => $(i).oninput = paintCreate);
+  ['cName', 'cSym', 'cSupply', 'cBase', 'cTarget', 'cArtUrl'].forEach(i => $(i).oninput = paintCreate);
   $('cGo').onclick = async () => {
-    const j = await act({ type: 'create', name: $('cName').value, symbol: $('cSym').value, art: cArt, supply: $('cSupply').value, base: $('cBase').value.trim(), target: $('cTarget').value.trim() }, $('cGo'));
-    if (j && j.market) location.hash = '#/m/' + j.market.id;
+    if (!FACTORY) return toast('Contracts are not deployed yet.', true);
+    const name = $('cName').value.trim(), sym = $('cSym').value.toUpperCase().replace(/[^A-Z0-9]/g, ''), art = cArtValue();
+    if (name.length < 2 || sym.length < 2) return toast('Name and symbol need at least 2 characters.', true);
+    if (!/^(https|ipfs):\/\//.test(art)) return toast('Artwork link must start with https:// or ipfs://', true);
+    const rc = await act({ address: FACTORY, abi: FAC, functionName: 'create', args: [name, sym, art, cTerms.base, cTerms.supply, $('cTarget').value.trim() ? cTerms.target : 0n] }, $('cGo'), 'Launching ' + name);
+    if (!rc) return;
+    for (const l of rc.logs) { try { const d = decodeEventLog({ abi: FAC, data: l.data, topics: l.topics }); if (d.eventName === 'MarketCreated') { location.hash = '#/m/' + d.args.market; return; } } catch {} }
   };
   paintCreate();
 }
 function paintCreate() {
   if (!$('cQ')) return;
-  $('pvArt').src = '/assets/img/art-' + cArt + '.png'; $('pvName').textContent = $('cName').value.trim() || 'Your collection'; $('pvSym').textContent = ($('cSym').value.toUpperCase().replace(/[^A-Z0-9]/g, '') || 'SYMBOL');
+  $('pvArt').src = artSrc(cArtValue()); $('pvName').textContent = $('cName').value.trim() || 'Your collection'; $('pvSym').textContent = ($('cSym').value.toUpperCase().replace(/[^A-Z0-9]/g, '') || 'SYMBOL');
   try {
     const base = E.toWei($('cBase').value || '0', 'Starting price'), supply = BigInt(parseInt($('cSupply').value, 10) || 0), tg = $('cTarget').value.trim();
-    const T = E.makeTerms(base, supply, tg ? E.toWei(tg, 'Pool target') : null);
+    const T = E.makeTerms(base, supply, tg ? E.toWei(tg, 'Pool target') : null); cTerms = T;
     const M = { T, supply: 0n, curve: 0n, pool: 0n, reserved: 0n, gross: 0n, volume: 0n, live: false, nextToken: 1n, holders: {}, positions: [], trades: [] };
     const P = { wallet: 10n ** 30n }; let buys = 0, spend = 0n;
     while (!M.live && M.supply < T.supply) { const before = P.wallet; E.buyEditions(M, 'x', 1, P, 0); spend += before - P.wallet; buys++; }
     const first = T.base + E.bps(T.base, E.NFT_FEE_BPS);
     $('cQ').innerHTML = [['First PNG, incl. fee', fmt(first, 9)], ['Curve price ceiling', fmt(T.maximum, 9)], ['Perps open at', fmt(T.target, 9) + ' in fees'], ['Target range', fmt(T.minTarget, 6) + ' – ' + fmt(T.maxTarget, 6)], ['PNGs bought to open perps', M.live ? String(buys) : 'not reachable'], ['Total buyer spend to open', fmt(spend, 6)], ['Max Long collateral at opening', fmt(E.maxCollateral(M, cLev, true), 9) + ' at ' + cLev + '×'], ['Max Short collateral at opening', fmt(E.maxCollateral(M, cLev, false), 9) + ' at ' + cLev + '×']].map(r => `<div><span>${r[0]}</span><b>${r[1]}</b></div>`).join('');
-    $('cGo').disabled = false; $('cHelp').textContent = 'Estimate assumes editions bought one at a time from an empty curve, no sells and no open positions.';
-  } catch (e) { $('cQ').innerHTML = ''; $('cGo').disabled = true; $('cHelp').textContent = e.message; }
+    $('cGo').disabled = !FACTORY; $('cGo').textContent = FACTORY ? 'Launch collection' : 'Contracts deploy soon'; $('cHelp').textContent = 'Estimate assumes editions bought one at a time from an empty curve, no sells and no open positions.';
+  } catch (e) { $('cQ').innerHTML = ''; cTerms = null; $('cGo').disabled = true; $('cHelp').textContent = e.message; }
 }
 
+paintWallet();
+W.restore().then(s => { ST.w = s; paintWallet(); });
 load(true);
 </script>
 </body>
